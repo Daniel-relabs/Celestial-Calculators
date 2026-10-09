@@ -1,0 +1,811 @@
+NAV for the HP-28S — keying listing
+============================================================
+
+Setup: make a directory first:  'NAV' CRDIR  then press NAV in the USER menu.
+For every entry below, type the object exactly as shown, then type the name
+in quotes and STO.  Example:   69.2  'DT' STO
+Programs can be keyed in any order. Line breaks and indentation are only for
+readability; spaces between objects are what matter.
+
+Inputs and outputs are the same as on the HP-48 version, except that results
+are plain numbers on the stack (no tags), in the same order.
+Angles are decimal degrees, N and E positive. UT is entered as H.MMSS.
+Valid for 2024-2050 (the planet and Sun theory is fitted to that window).
+
+PLOT draws the lines of position with PIXEL, with the DR at the axis origin
+and the fix marked by a small cross. Press any key to return; the fix is then
+left on the stack. Scale: the screen's half-height is shown nowhere on this
+model, so read positions from the stack.
+
+After keying each data table, verify it with CHK: put the table on the stack
+(e.g. press STARS), then CHK. You get one number per row (row 1 highest on the
+stack, last row at level 1). Compare them with the checksum list for that table.
+A typo too small to change the checksum at 10 digits is too small to matter.
+
+------------------------------------------------------------
+1. SETTINGS
+------------------------------------------------------------
+
+69.2  'DT' STO
+
+0  'IC' STO
+
+2  'HE' STO
+
+10  'TEMP' STO
+
+1010  'PRES' STO
+
+DT   = Delta T (TT - UT) in seconds
+IC   = index correction in arcminutes, sign as applied (negative if 'on the arc')
+HE   = height of eye in metres
+TEMP = air temperature, deg C;  PRES = pressure, hPa
+
+------------------------------------------------------------
+2. PROGRAMS
+------------------------------------------------------------
+
+GM
+« 2 →LIST GET »
+'GM' STO
+
+JDN
+« → y m d h
+  « IF m 2 ≤ THEN y 1 - 'y' STO m 12 + 'm' STO END
+    y 100 / IP → a
+    « 365.25 y 4716 + * IP 30.6001 m 1 + * IP + d +
+      2 + a - a 4 / IP + 1524.5 - h HMS→ 24 / +
+    »
+  »
+»
+'JDN' STO
+
+JDT
+« JDN DUP 2451545 - DT 86400 / + 36525 / »
+'JDT' STO
+
+NUTN
+« → t
+  « 125.04452 1934.136261 t * -
+    280.4665 36000.7698 t * + 2 *
+    218.3165 481267.8813 t * + 2 *
+    → om L2 P2
+    « -17.2 om SIN * -1.32 L2 SIN * + -.23 P2 SIN * + .21 om 2 * SIN * +
+      9.2 om COS * .57 L2 COS * + .1 P2 COS * + -.09 om 2 * COS * +
+      DUP 3600 / 23.439291111 .0130041667 t * - +
+    »
+  »
+»
+'NUTN' STO
+
+GST2
+« → j t dp eps
+  « j 2451545 - → d
+    « 280.46061837 360 d FP * + .98564736629 d * +
+      .000387933 t SQ * + t 3 ^ 38710000 / -
+      dp eps COS * 3600 / + 360 MOD
+    »
+  »
+»
+'GST2' STO
+
+APP
+« → lam bet sl t j
+  « t NUTN → dp dq eps
+    « lam 1.397 t * - .00031 t SQ * - → lp
+      « lam -.09033 .03916 lp COS lp SIN + * bet TAN * + dp +
+        20.49552 sl lam - COS * bet COS / - 3600 / +
+        bet .03916 lp COS lp SIN - *
+        20.49552 sl lam - SIN * bet SIN * - 3600 / +
+        → L2 B2
+        « L2 COS L2 SIN eps COS * B2 TAN eps SIN * - R→C ARG
+          B2 SIN eps COS * B2 COS eps SIN * L2 SIN * + ASIN
+          → ra dc
+          « j t dp eps GST2 ra - 360 MOD dc
+          »
+        »
+      »
+    »
+  »
+»
+'APP' STO
+
+PSUM
+« → k c tau
+  « RAD 0 1 PT SIZE 1 GET
+    FOR i
+      IF PT i 1 GM k == PT i 2 GM c == AND
+      THEN PT i 3 GM PT i 4 GM PT i 5 GM tau * + COS * +
+      END
+    NEXT DEG
+  »
+»
+'PSUM' STO
+
+KEPL
+« → k t
+  « RAD
+    EL k 1 GM EL k 2 GM t * + D→R
+    EL k 3 GM
+    EL k 4 GM EL k 5 GM t * +
+    EL k 6 GM EL k 7 GM t * + D→R
+    EL k 8 GM EL k 9 GM t * + D→R
+    EL k 10 GM EL k 11 GM t * + D→R
+    → L a e i O w
+    « L w - DUP → M E
+      « 1 6 START E E e E SIN * - M - 1 e E COS * - / - 'E' STO NEXT
+        1 e - √ E 2 / COS * 1 e + √ E 2 / SIN * R→C ARG 2 *
+        a 1 e E COS * - *
+        → nu r
+        « nu w + O - → u
+          « u COS i COS u SIN * R→C ARG O + R→D
+            i SIN u SIN * ASIN R→D r DEG
+          »
+        »
+      »
+    »
+  »
+»
+'KEPL' STO
+
+HPOS
+« → k tau
+  « k tau 10 * KEPL → l b r
+    « l k 1 tau PSUM R→D + b k 2 tau PSUM R→D + r k 3 tau PSUM +
+    »
+  »
+»
+'HPOS' STO
+
+CHK
+« → a
+  « 1 a SIZE 1 GET
+    FOR i 0 1 a SIZE 2 GET
+      FOR j a i j GM j * +
+      NEXT
+    NEXT
+  »
+»
+'CHK' STO
+
+PLOT
+« DEG → la lo s
+  « la lo s FIX → fa fo
+    « fa la - 60 * fo lo - 60 * la COS * → fn fe
+      « fn ABS fe ABS MAX 2 +
+        1 s SIZE FOR i s i 1 + GET ABS 2 + MAX 2 STEP 1.4 * → R
+        « CLLCD R 4.28 * NEG R NEG R→C PMIN R 4.28 * R R→C PMAX DRAX
+          1 s SIZE
+          FOR i s i GET s i 1 + GET → z p
+            « p z SIN * p z COS * → fx fy
+              « -60 60
+                FOR k fx z COS R * k * 15 / + fy z SIN R * k * 15 / - R→C PIXEL
+                NEXT
+              »
+            »
+          2 STEP
+          -1 1
+          FOR k fe R k * 16 / + fn R→C PIXEL fe fn R k * 8 / + R→C PIXEL
+          NEXT
+          DO UNTIL KEY END DROP
+          fa fo
+        »
+      »
+    »
+  »
+»
+'PLOT' STO
+
+PXYZ
+« → k tau ex ey ez
+  « k tau HPOS → l b r
+    « l COS b COS * r * ex - l SIN b COS * r * ey - b SIN r * ez -
+    »
+  »
+»
+'PXYZ' STO
+
+ARIES
+« DEG JDT → j t
+  « t NUTN → dp dq eps
+    « j t dp eps GST2
+    »
+  »
+»
+'ARIES' STO
+
+SUN
+« DEG JDT → j t
+  « 1 t 10 / HPOS → le be re
+    « le 180 + be NEG le 180 + t j APP → g dc
+      « g dc
+        959.63 re / 60 / 8.794 re / 60 /
+      »
+    »
+  »
+»
+'SUN' STO
+
+PLANET
+« DEG → n y m d h
+  « IF n TYPE 2 == THEN PNAM n POS 'n' STO END
+    y m d h JDT → j t
+    « 1 t 10 / HPOS → le be re
+      « le COS be COS * re * le SIN be COS * re * be SIN re *
+        → ex ey ez
+        « n 1 + t 10 / ex ey ez PXYZ
+          SQ SWAP SQ + SWAP SQ + √ .0057755183 * 365250 /
+          n 1 + t 10 / ROT - ex ey ez PXYZ
+          → x y z
+          « PNAM n GET
+            x y R→C ARG x SQ y SQ + √ z R→C ARG
+            le 180 + t j APP → g dc
+            « g dc
+              8.794 x SQ y SQ + z SQ + √ / 60 /
+            »
+          »
+        »
+      »
+    »
+  »
+»
+'PLANET' STO
+
+STAR
+« DEG → n y m d h
+  « IF n TYPE 2 == THEN SNAM n POS 'n' STO END
+    y m d h JDT → j t
+    « STARS n 1 GM STARS n 2 GM → a0 d0
+      « a0 STARS n 3 GM t * 100 * 3600 / d0 COS / +
+        d0 STARS n 4 GM t * 100 * 3600 / +
+        2306.2181 t * .30188 t SQ * + .017998 t 3 ^ * + 3600 /
+        2306.2181 t * 1.09468 t SQ * + .018203 t 3 ^ * + 3600 /
+        2004.3109 t * .42665 t SQ * - .041833 t 3 ^ * - 3600 /
+        → a1 d1 z1 z2 th
+        « a1 z1 + → az
+          « th COS d1 COS * az COS * th SIN d1 SIN * -
+            d1 COS az SIN * R→C ARG z2 +
+            th SIN d1 COS * az COS * th COS d1 SIN * + ASIN
+            → a de
+            « t NUTN → dp dq eps
+              « 280.46646 36000.76983 t * + 357.52911 35999.05029 t * +
+                → l0 mm
+                « l0 1.914602 mm SIN * + .019993 mm 2 * SIN * +
+                  .000289 mm 3 * SIN * + → sl
+                  « eps COS eps SIN a SIN * de TAN * + dp *
+                    a COS de TAN * dq * -
+                    20.49552 a COS sl COS * eps COS * a SIN sl SIN * + *
+                    de COS / - 3600 / a +
+                    eps SIN a COS * dp * a SIN dq * +
+                    20.49552 sl COS eps COS * eps TAN de COS * a SIN de SIN * - *
+                    a COS de SIN * sl SIN * + * - 3600 / de +
+                    → A2 D2
+                    « SNAM n GET j t dp eps GST2 A2 - 360 MOD
+                      360 A2 - 360 MOD D2
+                    »
+                  »
+                »
+              »
+            »
+          »
+        »
+      »
+    »
+  »
+»
+'STAR' STO
+
+SFIND
+« SNAM SWAP POS »
+'SFIND' STO
+
+MSUM
+« → tb D M P F E c
+  « 0 1 tb SIZE 1 GET
+    FOR i tb i 1 GM D * tb i 2 GM M * + tb i 3 GM P * + tb i 4 GM F * +
+      IF c THEN COS ELSE SIN END
+      tb i 5 GM * E tb i 2 GM ABS ^ * +
+    NEXT
+  »
+»
+'MSUM' STO
+
+MOON
+« DEG JDT → j t
+  « 218.3164477 481267.88123421 t * + .0015786 t SQ * -
+    297.8501921 445267.1114034 t * + .0018819 t SQ * -
+    357.5291092 35999.0502909 t * + .0001536 t SQ * -
+    134.9633964 477198.8675055 t * + .0087414 t SQ * +
+    93.272095 483202.0175233 t * + .0036539 t SQ * -
+    1 .002516 t * - .0000074 t SQ * -
+    119.75 131.849 t * +
+    → Lp D M P F E A1
+    « MTL D M P F E 0 MSUM
+      3958 A1 SIN * + 1962 Lp F - SIN * + 318 53.09 479264.29 t * + SIN * +
+      1000000 / Lp +
+      MTB D M P F E 0 MSUM
+      -2235 Lp SIN * + 382 313.45 481266.484 t * + SIN * +
+      175 A1 F - SIN * + 175 A1 F + SIN * +
+      127 Lp P - SIN * + -115 Lp P + SIN * + 1000000 /
+      MTR D M P F E 1 MSUM 1000 / 385000.56 +
+      → lam bet dst
+      « t NUTN → dp dq eps
+        « lam dp 3600 / + → L2
+          « L2 COS L2 SIN eps COS * bet TAN eps SIN * - R→C ARG
+            bet SIN eps COS * bet COS eps SIN * L2 SIN * + ASIN
+            → ra dc
+            « j t dp eps GST2 ra - 360 MOD dc
+              358473400 dst / 60 / 6378.14 dst / ASIN 60 *
+            »
+          »
+        »
+      »
+    »
+  »
+»
+'MOON' STO
+
+LHA
+« + 360 MOD »
+'LHA' STO
+
+SRED
+« DEG → L D H
+  « L SIN D SIN * L COS D COS * H COS * + ASIN
+    L COS D SIN * L SIN D COS * H COS * -
+    H SIN D COS * NEG
+    R→C ARG 360 + 360 MOD
+  »
+»
+'SRED' STO
+
+CORR
+« DEG → hs lb sd hp
+  « hs IC 60 / + 1.76 HE √ * 60 / - → ha
+    « .0167 ha 7.32 ha 4.32 + / + TAN / .28 PRES * TEMP 273 + / * → rf
+      « ha rf - → h2
+        « h2 lb sd * 1 hp 60 / SIN h2 SIN * + * 60 / +
+          hp 60 / SIN h2 COS * ASIN +
+        »
+      »
+    »
+  »
+»
+'CORR' STO
+
+INT
+« - 60 * »
+'INT' STO
+
+FIX
+« DEG → la lo s
+  « 0 0 0 0 0 → A B C D E
+    « 1 s SIZE
+      FOR i s i GET s i 1 + GET → z p
+        « A z COS SQ + 'A' STO B z SIN z COS * + 'B' STO
+          C z SIN SQ + 'C' STO D p z COS * + 'D' STO
+          E p z SIN * + 'E' STO
+        »
+      2 STEP
+      A C * B SQ - → G
+      « la C D * B E * - G / 60 / +
+        lo A E * B D * - G / 60 / la COS / +
+      »
+    »
+  »
+»
+'FIX' STO
+
+DR
+« DEG → la lo c v h
+  « v h * 60 / → dd
+    « dd c COS * → dl
+      « la dl + → l2
+        « 45 l2 2 / + TAN 45 la 2 / + TAN / LN → dq
+          « IF dq ABS 1E-12 < THEN la COS ELSE dl D→R dq / END → q
+            « l2
+              lo dd c SIN * q / + 180 + 360 MOD 180 -
+            »
+          »
+        »
+      »
+    »
+  »
+»
+'DR' STO
+
+RL
+« DEG → a b c d
+  « d b - 180 + 360 MOD 180 - c a - → dl dp
+    « 45 c 2 / + TAN 45 a 2 / + TAN / LN → dq
+      « IF dq ABS 1E-12 < THEN a COS ELSE dp D→R dq / END → q
+        « dp D→R SQ q dl D→R * SQ + √ R→D 60 *
+          dq dl D→R R→C ARG 360 + 360 MOD
+        »
+      »
+    »
+  »
+»
+'RL' STO
+
+OBLQ
+« DEG → ho la z hp
+  « ho hp 60 / 298.26 / la SIN SQ NEG ho COS * la 2 * SIN z COS * ho SIN * + * +
+  »
+»
+'OBLQ' STO
+
+RV
+« → la lo « la COS lo COS * la COS lo SIN * la SIN 3 →ARRY » »
+'RV' STO
+
+VLL
+« DUP ABS / ARRY→ DROP → x y z « z ASIN x y R→C ARG » »
+'VLL' STO
+
+GC
+« DEG → a b c d
+  « a b RV c d RV DOT ACOS 60 *
+    d b - → dl
+    « a COS c SIN * a SIN c COS * dl COS * - dl SIN c COS * R→C ARG
+      360 + 360 MOD
+      c COS a SIN * c SIN a COS * dl COS * - dl SIN NEG a COS * R→C ARG
+      180 + 360 MOD
+    »
+  »
+»
+'GC' STO
+
+GCVX
+« DEG → a b c d
+  « a b RV c d RV CROSS DUP ABS / → n
+    « [ 0 0 1 ] DUP n DOT n * - → v
+      « IF a c + 0 < THEN v NEG ELSE v END VLL
+        SWAP SWAP
+      »
+    »
+  »
+»
+'GCVX' STO
+
+GCPT
+« DEG → a b c d s
+  « a b RV → p
+    « p c d RV CROSS DUP ABS / p CROSS → t
+      « p s 60 / COS * t s 60 / SIN * + VLL
+        SWAP SWAP
+      »
+    »
+  »
+»
+'GCPT' STO
+
+------------------------------------------------------------
+3. DATA
+------------------------------------------------------------
+
+MTL  — Moon longitude terms [D M M' F coefficient]
+[[ 0 0 1 0 6288774 ]
+     [ 2 0 -1 0 1274027 ]
+     [ 2 0 0 0 658314 ]
+     [ 0 0 2 0 213618 ]
+     [ 0 1 0 0 -185116 ]
+     [ 0 0 0 2 -114332 ]
+     [ 2 0 -2 0 58793 ]
+     [ 2 -1 -1 0 57066 ]
+     [ 2 0 1 0 53322 ]
+     [ 2 -1 0 0 45758 ]
+     [ 0 1 -1 0 -40923 ]
+     [ 1 0 0 0 -34720 ]
+     [ 0 1 1 0 -30383 ]
+     [ 2 0 0 -2 15327 ]
+     [ 0 0 1 2 -12528 ]
+     [ 0 0 1 -2 10980 ]
+     [ 4 0 -1 0 10675 ]
+     [ 0 0 3 0 10034 ]
+     [ 4 0 -2 0 8548 ]
+     [ 2 1 -1 0 -7888 ]
+     [ 2 1 0 0 -6766 ]
+     [ 1 0 -1 0 -5163 ]
+     [ 1 1 0 0 4987 ]
+     [ 2 -1 1 0 4036 ]
+     [ 2 0 2 0 3994 ]]
+'MTL' STO
+
+Checksums for MTL (row: value):
+   1: 31443873
+   2: 6370134
+   3: 3291572
+   4: 1068096
+   5: -925578
+   6: -571652
+   7: 293961
+   8: 285327
+   9: 266615
+  10: 228790
+  11: -204616
+  12: -173599
+  13: -151910
+  14: 76629
+  15: -62629
+  16: 54895
+  17: 53376
+  18: 50179
+  19: 42738
+  20: -39439
+  21: -33826
+  22: -25817
+  23: 24938
+  24: 20183
+  25: 19978
+
+MTB  — Moon latitude terms
+[[ 0 0 0 1 5128122 ]
+     [ 0 0 1 1 280602 ]
+     [ 0 0 1 -1 277693 ]
+     [ 2 0 0 -1 173237 ]
+     [ 2 0 -1 1 55413 ]
+     [ 2 0 -1 -1 46271 ]
+     [ 2 0 0 1 32573 ]
+     [ 0 0 2 1 17198 ]
+     [ 2 0 1 -1 9266 ]
+     [ 0 0 2 -1 8822 ]
+     [ 2 -1 0 -1 8216 ]
+     [ 2 0 -2 -1 4324 ]
+     [ 2 0 1 1 4200 ]
+     [ 2 1 0 -1 -3359 ]
+     [ 2 -1 -1 1 2463 ]]
+'MTB' STO
+
+Checksums for MTB (row: value):
+   1: 25640614
+   2: 1403017
+   3: 1388464
+   4: 866183
+   5: 277068
+   6: 231350
+   7: 162871
+   8: 86000
+   9: 46331
+  10: 44112
+  11: 41076
+  12: 21612
+  13: 21009
+  14: -16795
+  15: 12316
+
+MTR  — Moon distance terms
+[[ 0 0 1 0 -20905355 ]
+     [ 2 0 -1 0 -3699111 ]
+     [ 2 0 0 0 -2955968 ]
+     [ 0 0 2 0 -569925 ]
+     [ 2 0 -2 0 246158 ]
+     [ 2 -1 0 0 -204586 ]]
+'MTR' STO
+
+Checksums for MTR (row: value):
+   1: -104526772
+   2: -18495556
+   3: -14779838
+   4: -2849619
+   5: 1230786
+   6: -1022930
+
+EL  — Orbital elements, rows Earth Venus Mars Jupiter Saturn: [L0 L1 a e0 e1 i0 i1 Node0 Node1 Peri0 Peri1]
+[[ 100.464987 36000.76681 1.00000042 .0167083 -4.2E-5 0 0 0 0 102.96375 1.65628 ]
+     [ 181.979808 58519.21538 .723331669 .0067738 -5.15E-5 3.394668 .00097 76.6802 .90072 131.62592 1.25219 ]
+     [ 355.446721 19141.69833 1.52369021 .0934188 2.57E-5 1.849728 -.00064 49.55664 .77879 336.07851 1.77612 ]
+     [ 34.447315 3035.9669 5.20316824 .0488581 -.0018346 1.303585 -.00353 100.43484 1.15264 12.45896 7.88166 ]
+     [ 49.78293 1224.51916 9.53804893 .0556415 -.0042602 2.490377 -.01528 113.70382 .7624 93.79813 -1.88181 ]]
+'EL' STO
+
+Checksums for EL (row: value):
+   1: 73152.92181
+   2: 119194.5636
+   3: 42438.66679
+   4: 7155.114019
+   5: 4376.245514
+
+PT  — Periodic terms [body coord amplitude phase frequency]; body 1-5 as EL, coord 1 lon 2 lat 3 radius
+[[ 1 1 3.585E-5 2.8289 5753.38 ]
+     [ 1 1 3.134E-5 3.6273 77713.77 ]
+     [ 1 1 2.682E-5 4.402 7860.42 ]
+     [ 1 1 2.283E-5 6.1546 3930.21 ]
+     [ 1 1 1.423E-5 .6705 11506.77 ]
+     [ 1 1 1.156E-5 1.0721 1577.34 ]
+     [ 1 1 1.14E-5 2.989 5486.78 ]
+     [ 1 1 9.419E-6 5.1116 5884.93 ]
+     [ 1 1 6.68E-6 2.5823 801.82 ]
+     [ 1 1 6.024E-6 1.0718 6069.78 ]
+     [ 1 1 3.752E-6 6.1899 2146.17 ]
+     [ 1 1 1.655E-6 4.7554 5507.55 ]
+     [ 1 3 3.088E-5 5.1994 77713.77 ]
+     [ 2 1 1.569E-5 4.2737 1577.34 ]
+     [ 2 1 7.504E-6 1.4615 775.52 ]
+     [ 3 1 9.595E-5 2.8461 2281.23 ]
+     [ 3 1 6.874E-5 .253 398.15 ]
+     [ 3 1 4.883E-5 6.0343 3127.31 ]
+     [ 3 1 2.702E-5 5.1648 796.3 ]
+     [ 3 1 1.871E-5 6.2442 3738.76 ]
+     [ 3 3 4.825E-5 1.2133 2281.23 ]
+     [ 4 1 .0005125 5.4371 206.19 ]
+     [ 4 1 .0001838 2.3957 838.97 ]
+     [ 4 1 .0001531 2.8995 454.91 ]
+     [ 4 1 7.687E-5 2.417 949.18 ]
+     [ 4 1 7.06E-5 6.2452 735.88 ]
+     [ 4 1 4.184E-5 1.9746 323.51 ]
+     [ 5 1 .004492 1.5515 .96 ]
+     [ 5 1 .0003478 4.4886 316.39 ]
+     [ 5 1 .0001697 1.2316 632.78 ]
+     [ 5 1 9.601E-5 4.7068 522.58 ]
+     [ 5 1 6.502E-5 4.6083 853.2 ]
+     [ 5 1 3.667E-5 1.7194 433.71 ]
+     [ 5 1 9.109E-6 1.5481 1052.27 ]
+     [ 5 1 7.055E-6 2.957 949.18 ]
+     [ 5 3 .006224 2.8744 227.53 ]]
+'PT' STO
+
+Checksums for PT (row: value):
+   1: 28781.21571
+   2: 388586.3593
+   3: 39322.70808
+   4: 19678.66847
+   5: 57539.53204
+   6: 7893.988435
+   7: 27448.85603
+   8: 29448.09643
+   9: 4022.42922
+  10: 30356.18722
+  11: 10758.60961
+  12: 27559.7716
+  13: 388596.6477
+  14: 7907.794847
+  15: 3887.446023
+  16: 11422.53469
+  17: 1996.762206
+  18: 15665.68735
+  19: 4007.159281
+  20: 18723.77686
+  21: 11420.00334
+  22: 1058.699938
+  23: 4210.433351
+  24: 2292.148459
+  25: 4761.568231
+  26: 3710.381012
+  27: 1631.448526
+  28: 18.019476
+  29: 1606.905443
+  30: 3175.826909
+  31: 2638.727488
+  32: 4291.433395
+  33: 2182.42771
+  34: 5274.542427
+  35: 4764.728021
+  36: 1160.166272
+
+STARS  — 57 stars [RA2000 Dec2000 pmRA pmDec], Nautical Almanac order
+[[ 2.097083 29.090556 .136 -.163 ]
+     [ 6.570833 -42.306111 .203 -.396 ]
+     [ 10.127083 56.537222 .053 -.032 ]
+     [ 10.8975 -17.986667 .234 .033 ]
+     [ 24.42875 -57.236667 .095 -.035 ]
+     [ 31.793333 23.4625 .19 -.148 ]
+     [ 44.565417 -40.304722 -.045 .019 ]
+     [ 45.57 4.089722 -.009 -.078 ]
+     [ 51.080833 49.861111 .024 -.025 ]
+     [ 68.98 16.509167 .063 -.19 ]
+     [ 78.634583 -8.201667 0 -.001 ]
+     [ 79.1725 45.998056 .076 -.425 ]
+     [ 81.282917 6.349722 -.009 -.014 ]
+     [ 81.572917 28.6075 .022 -.175 ]
+     [ 84.053333 -1.201944 .001 -.002 ]
+     [ 88.792917 7.406944 .026 .009 ]
+     [ 95.987917 -52.695833 .022 .021 ]
+     [ 101.287083 -16.716111 -.553 -1.205 ]
+     [ 104.65625 -28.972222 .004 .003 ]
+     [ 114.825417 5.225 -.71 -1.023 ]
+     [ 116.32875 28.026111 -.628 -.046 ]
+     [ 125.628333 -59.509722 -.026 .014 ]
+     [ 136.999167 -43.4325 -.019 .013 ]
+     [ 138.3 -69.717222 -.162 .108 ]
+     [ 141.896667 -8.658611 -.014 .033 ]
+     [ 152.092917 11.967222 -.248 .006 ]
+     [ 165.932083 61.750833 -.119 -.067 ]
+     [ 177.265 14.571944 -.497 -.114 ]
+     [ 183.951667 -17.541944 -.161 .023 ]
+     [ 186.649583 -63.099167 -.036 -.012 ]
+     [ 187.79125 -57.113333 .023 -.262 ]
+     [ 193.507083 55.959722 .112 -.006 ]
+     [ 201.298333 -11.161389 -.041 -.028 ]
+     [ 206.885 49.313333 -.122 -.011 ]
+     [ 210.955833 -60.373056 -.032 -.019 ]
+     [ 211.670833 -36.37 -.519 -.519 ]
+     [ 213.915417 19.1825 -1.093 -1.998 ]
+     [ 219.899583 -60.835278 -3.642 .699 ]
+     [ 222.719583 -16.041667 -.106 -.067 ]
+     [ 222.67625 74.155556 -.031 .012 ]
+     [ 233.672083 26.714722 .121 -.089 ]
+     [ 247.351667 -26.431944 -.01 -.02 ]
+     [ 252.16625 -69.027778 .014 -.034 ]
+     [ 257.594583 -15.724722 .039 .098 ]
+     [ 263.402083 -37.103889 -.001 -.029 ]
+     [ 263.73375 12.56 .12 -.226 ]
+     [ 269.151667 51.488889 -.008 -.019 ]
+     [ 276.042917 -34.384722 -.038 -.124 ]
+     [ 279.234583 38.783611 .202 .286 ]
+     [ 283.81625 -26.296667 .013 -.054 ]
+     [ 297.695833 8.868333 .538 .386 ]
+     [ 306.412083 -56.735 .007 -.089 ]
+     [ 310.357917 45.280278 .003 .002 ]
+     [ 326.046667 9.875 .031 -.001 ]
+     [ 332.058333 -46.961111 .129 -.151 ]
+     [ 344.412917 -29.622222 .333 -.165 ]
+     [ 346.190417 15.205278 .063 -.042 ]]
+'STARS' STO
+
+Checksums for STARS (row: value):
+   1: 60.034195
+   2: -79.016389
+   3: 123.232527
+   4: -24.241834
+   5: -89.899584
+   6: 78.696333
+   7: -36.103027
+   8: 53.410444
+   9: 150.775055
+  10: 101.427334
+  11: 62.227249
+  12: 169.696612
+  13: 93.899361
+  14: 138.153917
+  15: 81.644445
+  16: 103.720805
+  17: -9.253749
+  18: 61.375861
+  19: 46.735806
+  20: 119.053417
+  21: 170.312972
+  22: 6.586889
+  23: 50.129167
+  24: -1.188444
+  25: 124.669445
+  26: 175.307361
+  27: 288.808749
+  28: 204.461888
+  29: 148.476779
+  30: 60.295249
+  31: 72.585584
+  32: 305.738527
+  33: 178.740555
+  34: 305.101666
+  35: 90.037721
+  36: 135.297833
+  37: 241.009417
+  38: 90.099027
+  39: 190.050249
+  40: 370.942362
+  41: 287.108527
+  42: 194.377779
+  43: 114.016694
+  44: 226.654139
+  45: 189.075305
+  46: 288.30975
+  47: 372.029445
+  48: 206.663473
+  49: 358.551805
+  50: 231.045916
+  51: 318.590499
+  52: 192.607083
+  53: 400.935473
+  54: 345.885667
+  55: 237.919111
+  56: 285.507473
+  57: 376.621973
+
+SNAM  — Star names
+{ "Alpheratz" "Ankaa" "Schedar" "Diphda" "Achernar" "Hamal" "Acamar" "Menkar" "Mirfak" "Aldebaran" "Rigel" "Capella" "Bellatrix" "Elnath" "Alnilam" "Betelgeuse" "Canopus" "Sirius" "Adhara" "Procyon" "Pollux" "Avior" "Suhail" "Miaplacidus" "Alphard" "Regulus" "Dubhe" "Denebola" "Gienah" "Acrux" "Gacrux" "Alioth" "Spica" "Alkaid" "Hadar" "Menkent" "Arcturus" "Rigil Kent" "Zubenelgenubi" "Kochab" "Alphecca" "Antares" "Atria" "Sabik" "Shaula" "Rasalhague" "Eltanin" "Kaus Aust" "Vega" "Nunki" "Altair" "Peacock" "Deneb" "Enif" "Al Na'ir" "Fomalhaut" "Markab" }
+'SNAM' STO
+
+PNAM  — Planet names
+{ "Venus" "Mars" "Jupiter" "Saturn" }
+'PNAM' STO
